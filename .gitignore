@@ -1,0 +1,20 @@
+# Unity
+Game/[Ll]ibrary/
+Game/[Tt]emp/
+Game/[Oo]bj/
+Game/[Bb]uild/
+Game/[Bb]uilds/
+Game/[Ll]ogs/
+Game/[Uu]ser[Ss]ettings/
+Game/MemoryCaptures/
+Game/*.csproj
+Game/*.sln
+Game/*.slnx
+Game/.vs/
+Game/.idea/
+*.apk
+*.aab
+# Core test console
+Game/CoreTests/bin/
+Game/CoreTests/obj/
+.DS_Store

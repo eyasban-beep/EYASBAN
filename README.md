@@ -9,3 +9,4 @@
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 마일스톤 M0~M4 |
 | [docs/reference/](docs/reference/) | 레퍼런스 관찰 분석 (수치 복제 금지) |
 | [docs/data/stages.csv](docs/data/stages.csv) | 120개 스테이지 밸런스 초안 |
+| [Game/README.md](Game/README.md) | **Unity 프로젝트 여는 방법 (집에서 여기부터)** |
