@@ -20,7 +20,7 @@ Assets/
     Scripts/
       Core/          # GameManager, SaveSystem, TimeService(서버시간), EventBus
       Data/          # ScriptableObject 정의, CSV 임포터
-      Forge/         # ForgeService(단조 로직), ItemFactory, AutoSellFilter
+      Closet/        # MimicService(먹이기→장비 생성 로직), ItemFactory, AutoSellFilter
       Avatar/        # AvatarController(Spine 스킨 조합), CostumeService
       Battle/        # BattleSimulator(결정론적), Unit, SkillRunner, StageRunner
       Progression/   # Companion, Familiar, Mount, ResearchTree
@@ -54,7 +54,7 @@ Tools/
 // ItemInstance (보유 장비)
 { "uid": "...", "itemId": "top_t5_01", "level": 23, "subStats": [{"type":"critRate","v":0.03}] }
 
-// ForgeLevel
+// MimicLevel (클로제 레벨)
 { "lv": 20, "upgradeGold": 150000, "upgradeSec": 3600,
   "tierWeights": [10,35,40,15,0,0,0,0,0,0], "itemLvRange": [18,22] }
 
@@ -76,7 +76,7 @@ Tools/
 ## 6. 세이브 & 치트 방지
 - 로컬 세이브(암호화) + 주기적 서버 동기화(재화/가챠/결제는 서버 우선)
 - 시간: 서버 시간 기준(오프라인 보상, 연구 대기) — 기기 시간 변경 치트 방지
-- 단조 결과 RNG: 오프라인에서도 되도록 클라 RNG 허용하되, 망치 소모/장비 수는 서버 동기화 시 검증 (한도 초과 시 롤백)
+- 먹이기 결과 RNG: 오프라인에서도 되도록 클라 RNG 허용하되, 열쇠 소모/장비 수는 서버 동기화 시 검증 (한도 초과 시 롤백)
 
 ## 7. 개발 환경 (집 데스크톱)
 1. Unity Hub + Unity 6 LTS + Android Build Support (SDK/NDK/OpenJDK 포함)
