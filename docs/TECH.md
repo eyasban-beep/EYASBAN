@@ -94,3 +94,11 @@ Tools/
    git checkout claude/laughing-rubin-yg6vsc
    ```
 5. Unity 프로젝트는 저장소 루트에 `Game/` 폴더로 생성 권장 (문서 `docs/`와 분리)
+
+## 8. 아트 파이프라인 (로컬 Stable Diffusion)
+1. **베이스 모델 선택 시 라이선스 확인** — 상업 이용 가능 여부·매출 한도 조건이 모델마다 다름 (SDXL 계열 파생 모델, 커뮤니티 모델 각각 약관 확인 후 `docs/art/LICENSES.md`에 기록)
+2. **캐릭터 일관성**: 리아·동료마다 자체 LoRA 학습(직접 만든 시안 20~40장) → 같은 얼굴·체형 유지
+3. **포즈 고정**: ControlNet(OpenPose/Lineart)에 SD 템플릿 포즈를 넣어 모든 부위 이미지를 같은 포즈로 생성 → Sprite Swap에서 겹침이 맞음
+4. **배경 제거**: 투명 PNG 추출(배경 제거 확장) → Krita에서 부위 분리·기준점 맞춤
+5. **두 빌드 분리**: 스토어판/성인판 일러스트는 폴더를 나눠 저장 (`Art/Store`, `Art/Adult`) — 스토어 빌드에 성인판 폴더 포함 금지
+6. ⚠️ IP: 기존 게임·애니 캐릭터 LoRA, 실존 작가명 프롬프트, 레퍼런스 게임 이미지 img2img 입력 금지
