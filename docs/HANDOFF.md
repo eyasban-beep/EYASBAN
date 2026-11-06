@@ -1,0 +1,19 @@
+# 작업 인수인계 (클라우드 세션 → 집 VS Code)
+
+## 지금까지 된 것
+- 기획: `docs/GDD.md` v0.3 — 「리아의 마법 옷장」(옷장 미믹 클로제에게 열쇠를 먹이면 장비를 뱉는 방치형 RPG), 12챕터(마을→마왕성), 던전 4+2, 길드/길드전(6일 활동 점수 경쟁), 시즌(8주), 승천, 수호령
+- 레퍼런스 분석: `docs/reference/REF_01`, `REF_02` (원작 수치·명칭 복제 금지)
+- 기술: `docs/TECH.md` — Unity 6 + Sprite Swap 아바타, PlayFab, 로컬 Stable Diffusion 파이프라인
+- 일정: `docs/ROADMAP.md` — 1인·초보 기준, 2027 초 비공개 테스트 / 하반기 정식
+- 코드: `Game/` Unity 프로젝트 — M1 코어 루프 프로토타입 (임시 OnGUI 화면). `Game/CoreTests` 점검 18개 통과
+- 결정사항: B안(스토어판 + 별도 성인판), 모든 캐릭터 성인, SD에는 성적 연출 금지 → `CLAUDE.md`
+
+## 아직 확인 안 된 것
+- **Unity에서 실제로 열고 실행해본 적 없음** (클라우드에는 Unity가 없어서 문법 검사까지만 함)
+
+## 다음 할 일 (순서대로)
+1. Unity Hub → Add project from disk → `Game` 폴더 → ▶ Play 확인, 오류 있으면 수정
+2. 한글 폰트 적용 (`Game/README.md` 5번)
+3. 10분 플레이 → 체감 밸런스 조정 (`GameConfig.cs`)
+4. 아바타 Sprite Swap 구조 + SD 템플릿 아트 가이드
+5. 동료(스킬)·소환 숙련도
