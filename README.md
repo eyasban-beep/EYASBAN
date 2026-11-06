@@ -7,4 +7,5 @@
 | [docs/GDD.md](docs/GDD.md) | 게임 기획서: 루프, 장비/아바타, 12챕터 스테이지, 던전, 클랜전, BM |
 | [docs/TECH.md](docs/TECH.md) | 기술 설계: Unity + Spine 아바타, 데이터 스키마, 서버 검증 |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 마일스톤 M0~M4 |
+| [docs/reference/](docs/reference/) | 레퍼런스 관찰 분석 (수치 복제 금지) |
 | [docs/data/stages.csv](docs/data/stages.csv) | 120개 스테이지 밸런스 초안 |
