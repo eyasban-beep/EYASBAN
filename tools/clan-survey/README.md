@@ -28,53 +28,36 @@
 ## 파일 구조
 ```
 tools/clan-survey/
-├─ public/            ← 화면 (그대로 배포됨)
-│  ├─ index.html
-│  ├─ style.css
-│  ├─ app.js          ← 화면 동작
-│  └─ parse.js        ← "346k" 같은 글자를 숫자로 바꾸는 부분
-├─ functions/api/[[route]].js   ← 서버 (/api/... 요청 처리, D1 저장)
+├─ public/            ← 화면 (index.html, style.css, app.js, parse.js)
+├─ src/api.js         ← 서버 (/api/... 요청 처리, D1 저장)
+├─ src/worker.js      ← Workers 방식 입구
+├─ functions/api/[[route]].js ← Pages 방식 입구 (같은 src/api.js 사용)
+├─ wrangler.jsonc     ← Workers 배포 설정 (D1 이름 clan-survey 자동 연결)
 └─ schema.sql         ← DB 표 구조 (참고용, 서버가 처음 실행될 때 자동으로 만듦)
 ```
 
 ---
 
-## 배포 방법 (처음 1번만)
+## 배포 방법 (Cloudflare Workers + GitHub, 처음 1번만)
 
-### 1단계. D1 데이터베이스 만들기
-1. https://dash.cloudflare.com 로그인
-2. 왼쪽 메뉴 **Storage & Databases → D1 SQL Database** → **Create**
-3. 이름: `clan-survey` → Create
-   (표는 사이트가 처음 열릴 때 자동으로 만들어지니 콘솔에서 SQL을 칠 필요 없음)
-
-### 2단계. Pages 프로젝트 만들기 (GitHub 연결)
-1. 왼쪽 메뉴 **Workers & Pages** → **Create** → **Pages** 탭 → **Connect to Git**
-   (Workers 화면만 보이면 아래쪽의 "Looking to deploy Pages? Get started" 링크)
-2. GitHub 저장소 `EYASBAN` 선택
-3. 설정값:
-   | 항목 | 값 |
+1. **D1 데이터베이스**: 스토리지 및 데이터베이스 → D1 → `clan-survey` 생성 (✅ 완료)
+2. **컴퓨트 → Workers 및 Pages → 애플리케이션 생성 → Git 리포지토리 가져오기** → `eyasban-beep/EYASBAN`
+3. 애플리케이션 설정 화면
+   | 칸 | 값 |
    |---|---|
-   | Production branch | 이 코드가 들어있는 브랜치 (main에 합친 뒤라면 `main`) |
-   | Framework preset | None |
-   | Build command | (비워둠) |
-   | Build output directory | `public` |
-   | Root directory (Advanced 안에 있음) | `tools/clan-survey` |
-4. **Save and Deploy**. 이 시점에는 DB가 아직 안 붙어서 사이트가 "D1 데이터베이스가 연결되지 않았어요"라고 나오는 게 정상.
+   | 프로젝트 이름 | `clan-survey` |
+   | 빌드 명령 | 비워 둠 |
+   | 배포 명령 | `npx wrangler deploy` (기본값 그대로) |
+   | 고급 설정 → 경로(루트 디렉터리) | `tools/clan-survey` |
+   → **배포**
+4. 브랜치: GitHub 저장소의 기본 브랜치에 이 코드가 없으면 첫 배포가 실패한다.
+   프로젝트 → 설정 → 빌드 → 분기 제어 → 프로덕션 분기를 `claude/determined-clarke-ekn93g` 로 바꾸고 다시 배포.
+5. `https://clan-survey.<계정이름>.workers.dev` 접속 → **관리자 탭에서 비밀번호를 처음 정함** (먼저 들어온 사람이 정하게 되니 배포 직후 바로 할 것)
+6. 클랜원 명단 입력·저장 → 주소를 클랜 공지에 올리기
 
-### 3단계. DB 연결 + 비밀번호 설정
-Pages 프로젝트 → **Settings**
-1. **Bindings** → Add → **D1 database** → Variable name `DB` / Database `clan-survey` → Save
-2. **Variables and Secrets** → Add
-   - `ADMIN_PASSWORD` (Type: **Secret**) — 관리자 탭 비밀번호. 계수·명단을 바꿀 사람만 알면 됨
-   - `CLAN_CODE` (선택, Secret) — 넣으면 제출할 때 이 코드를 물어봄. 링크가 밖으로 새도 아무나 제출 못 하게 하고 싶을 때
-3. **Deployments** 탭 → 최신 배포 오른쪽 `…` → **Retry deployment** (설정은 다시 배포해야 적용됨)
-
-### 4단계. 처음 세팅
-1. `https://<프로젝트이름>.pages.dev` 접속 → **관리자** 탭 → 비밀번호 입력
-2. **클랜원 명단**: 한 줄에 한 명씩 붙여넣고 저장 (닉네임은 대소문자 구분 없이 맞춰줌: `daye` = `Daye`)
-3. **항목·계수**: 기본 6개(스킬뽑기·펫알·펫합성·탈것뽑기·탈것합성·초록물약, 계수 1)가 들어있음. 계수 고치고 저장
-   - "다른 이름"에 `스킬, 스뽑` 처럼 적으면 한 줄 입력에서 `스뽑 346k`도 알아들음
-4. 사이트 주소를 클랜 공지에 올리기 → 끝
+- DB 연결은 `wrangler.jsonc` 에 적힌 이름(`clan-survey`)으로 배포 때 자동으로 된다. 대시보드에서 바인딩을 따로 추가할 필요 없음.
+- 관리자 비밀번호는 관리자 탭에서 바꿀 수 있다. (환경 변수 `ADMIN_PASSWORD` 를 넣으면 그 값이 우선)
+- 선택: 환경 변수 `CLAN_CODE` 를 넣으면 제출 때 클랜 코드를 묻는다.
 
 ## 매주 쓰는 법
 - **클랜원**: 월요일에 접속 → 제출하기 → 둘 중 편한 방식으로 입력 → 제출
@@ -88,6 +71,6 @@ GitHub의 Production branch에 push하면 Cloudflare가 자동으로 다시 배�
 cd tools/clan-survey
 ```
 ```bash
-npx wrangler pages dev public --d1 DB=local-db --binding ADMIN_PASSWORD=test
+npx wrangler dev
 ```
-→ 브라우저에서 http://localhost:8788
+→ 브라우저에서 http://localhost:8787

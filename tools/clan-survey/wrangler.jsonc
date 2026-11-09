@@ -1,0 +1,15 @@
+// Cloudflare Workers 배포 설정 (대시보드에서 루트 디렉터리를 tools/clan-survey 로 지정)
+{
+  "name": "clan-survey",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // database_id 를 비워두면 배포 때 같은 이름(clan-survey)의 D1 을 찾아 자동 연결 (없으면 새로 만듦)
+  "d1_databases": [
+    { "binding": "DB", "database_name": "clan-survey" }
+  ]
+}

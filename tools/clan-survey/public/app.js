@@ -294,6 +294,30 @@ $('#csvAll').onclick = async () => {
 };
 
 // ---------------- 관리자 ----------------
+$('#setupBox').onsubmit = async e => {
+  e.preventDefault();
+  const a = $('#setupPw').value, b = $('#setupPw2').value;
+  if (a !== b) return msg($('#setupMsg'), '두 비밀번호가 달라요', false);
+  try {
+    await api('admin/setup', { method: 'POST', body: { password: a } });
+    cfg.adminSet = true;
+    $('#setupBox').classList.add('hidden');
+    adminPw = a;
+    await adminLogin(true);
+  } catch (e) { msg($('#setupMsg'), e.message, false); }
+};
+$('#pwBox').onsubmit = async e => {
+  e.preventDefault();
+  const pw = $('#newPw').value;
+  try {
+    await api('admin/password', { method: 'PUT', body: { password: pw } });
+    adminPw = pw;
+    try { sessionStorage.setItem('adminPw', pw); } catch {}
+    $('#newPw').value = '';
+    msg($('#pwMsg'), '바꿨어요', true);
+  } catch (e) { msg($('#pwMsg'), e.message, false); }
+};
+
 $('#loginBox').onsubmit = async e => {
   e.preventDefault();
   adminPw = $('#adminPw').value;
@@ -401,7 +425,8 @@ $('#saveMembers').onclick = async () => {
   $('#weekLabel').textContent = cfg.week;
   if (cfg.requireCode) { $('#codeRow').classList.remove('hidden'); $('#clanCode').value = store.get('clanCode'); }
   renderForm();
-  if (adminPw) adminLogin(false);
+  if (!cfg.adminSet) { $('#setupBox').classList.remove('hidden'); $('#loginBox').classList.add('hidden'); }
+  else if (adminPw) adminLogin(false);
   const t = location.hash.slice(1);
   if (['submit', 'status', 'admin'].includes(t)) showTab(t);
 })();
