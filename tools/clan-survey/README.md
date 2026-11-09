@@ -38,26 +38,15 @@ tools/clan-survey/
 
 ---
 
-## 배포 방법 (Cloudflare Workers + GitHub, 처음 1번만)
+## 배포 (GitHub Actions → Cloudflare Pages, 자동)
 
-1. **D1 데이터베이스**: 스토리지 및 데이터베이스 → D1 → `clan-survey` 생성 (✅ 완료)
-2. **컴퓨트 → Workers 및 Pages → 애플리케이션 생성 → Git 리포지토리 가져오기** → `eyasban-beep/EYASBAN`
-3. 애플리케이션 설정 화면
-   | 칸 | 값 |
-   |---|---|
-   | 프로젝트 이름 | `clan-survey` |
-   | 빌드 명령 | 비워 둠 |
-   | 배포 명령 | `npx wrangler deploy` (기본값 그대로) |
-   | 고급 설정 → 경로(루트 디렉터리) | `tools/clan-survey` |
-   → **배포**
-4. 브랜치: GitHub 저장소의 기본 브랜치에 이 코드가 없으면 첫 배포가 실패한다.
-   프로젝트 → 설정 → 빌드 → 분기 제어 → 프로덕션 분기를 `claude/determined-clarke-ekn93g` 로 바꾸고 다시 배포.
-5. `https://clan-survey.<계정이름>.workers.dev` 접속 → **관리자 탭에서 비밀번호를 처음 정함** (먼저 들어온 사람이 정하게 되니 배포 직후 바로 할 것)
-6. 클랜원 명단 입력·저장 → 주소를 클랜 공지에 올리기
-
-- DB 연결은 `wrangler.jsonc` 에 적힌 이름(`clan-survey`)으로 배포 때 자동으로 된다. 대시보드에서 바인딩을 따로 추가할 필요 없음.
-- 관리자 비밀번호는 관리자 탭에서 바꿀 수 있다. (환경 변수 `ADMIN_PASSWORD` 를 넣으면 그 값이 우선)
-- 선택: 환경 변수 `CLAN_CODE` 를 넣으면 제출 때 클랜 코드를 묻는다.
+- 사이트: **https://clan-survey.pages.dev**
+- `claude/determined-clarke-ekn93g` 브랜치에 `tools/clan-survey/` 변경을 push 하면 `.github/workflows/clan-survey.yml` 이 자동 배포한다.
+  GitHub → Actions 탭 → "Deploy clan-survey" 에서 결과·로그 확인, 실패하면 "Re-run jobs".
+- 필요한 것: GitHub 저장소 Secret `CLOUDFLARE_API_TOKEN` (권한: Cloudflare Pages 편집, D1 편집, Workers 스크립트 편집, 계정 설정 읽기)
+- D1 데이터베이스 `clan-survey` 는 이름으로 찾아 자동 연결 (없으면 새로 만듦). 표는 첫 요청 때 자동 생성.
+- 처음 접속하면 관리자 탭에서 비밀번호를 정한다 (먼저 들어온 사람이 정하므로 배포 직후 바로). 관리자 탭에서 변경 가능.
+- `wrangler.jsonc` / `src/worker.js` 는 Cloudflare Workers 방식으로 올릴 때를 위한 예비 설정 (현재 미사용).
 
 ## 매주 쓰는 법
 - **클랜원**: 월요일에 접속 → 제출하기 → 둘 중 편한 방식으로 입력 → 제출
