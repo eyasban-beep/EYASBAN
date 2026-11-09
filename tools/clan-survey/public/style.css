@@ -84,3 +84,10 @@ table.sheet td.na { color: var(--line); text-align: center; }
 .days input { width: auto; margin: 0; }
 table.edit input[data-k=name] { min-width: 96px; }
 table.edit input[data-k=aliases] { min-width: 110px; }
+
+h3 { font-size: 14px; margin: 16px 0 8px; }
+.totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.total-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
+.total-box span { display: block; font-size: 12px; color: var(--muted); }
+.total-box b { font-size: 18px; }
+.total-box small { margin-left: 6px; color: var(--muted); }

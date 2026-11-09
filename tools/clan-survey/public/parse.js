@@ -68,8 +68,11 @@ export function parseLine(text, items, members) {
   return out;
 }
 
+// 쓰는 날(days)이 없는 항목은 '집계만' → 점수에서 뺌
+export const scored = it => Array.isArray(it.days) && it.days.length > 0;
+
 export function score(values, items) {
   let s = 0;
-  for (const it of items) s += (Number(values?.[it.id]) || 0) * (Number(it.coef) || 0);
+  for (const it of items.filter(scored)) s += (Number(values?.[it.id]) || 0) * (Number(it.coef) || 0);
   return s;
 }

@@ -76,6 +76,7 @@
     <div class="card">
       <h2>클랜전 일자별 예상 점수 <span id="doneCount" class="badge ok"></span></h2>
       <div class="scroll"><table id="dayTable" class="sheet"></table></div>
+      <div id="countOnly"></div>
       <p class="hint">칸 = 클랜 전체 수량 × 계수. 한 자원이 두 날에 쓸 수 있으면 반씩 나눠 계산해요 (관리자 탭에서 쓰는 날을 하나만 체크하면 그날에 몰아서 계산).</p>
     </div>
 
@@ -105,7 +106,7 @@
     <div id="adminBox" class="hidden">
       <div class="card">
         <h2>항목 · 계수</h2>
-        <p class="hint">계수 = 1개당 클랜전 포인트. 쓰는 날 = 그 자원이 점수가 되는 클랜전 Day (Day 1 = 화요일).<br>다른 이름 = 한 줄 입력에서 같이 알아들을 별칭 (쉼표로 구분). ID는 저장 후 바꾸지 마세요 — 지난 기록이 ID로 연결돼요.</p>
+        <p class="hint">계수 = 1개당 클랜전 포인트. 쓰는 날 = 그 자원이 점수가 되는 클랜전 Day (Day 1 = 화요일). <b>쓰는 날을 하나도 체크하지 않으면 '집계만'</b> — 점수에서 빠지고 클랜 합계만 보여요 (예: 펫알, 초록물약).<br>다른 이름 = 한 줄 입력에서 같이 알아들을 별칭 (쉼표로 구분). ID는 저장 후 바꾸지 마세요 — 지난 기록이 ID로 연결돼요.</p>
         <div class="scroll"><table id="itemTable" class="edit"></table></div>
         <div class="actions">
           <button id="addItem">+ 항목 추가</button>

@@ -1,4 +1,4 @@
-import { parseAmount, parseLine, fmt, score } from './parse.js';
+import { parseAmount, parseLine, fmt, score, scored } from './parse.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -202,17 +202,20 @@ function renderStatus() {
 
   // 일자별
   const { totals, days } = dayStats();
+  const si = cfg.items.filter(scored), ci = cfg.items.filter(it => !scored(it));
   $('#dayTable').innerHTML = `
-    <thead><tr><th>클랜전</th><th>날짜</th>${cfg.items.map(it => `<th>${esc(it.name)}<small>×${it.coef}</small></th>`).join('')}<th>합계</th></tr></thead>
+    <thead><tr><th>클랜전</th><th>날짜</th>${si.map(it => `<th>${esc(it.name)}<small>×${it.coef}</small></th>`).join('')}<th>합계</th></tr></thead>
     <tbody>
-      <tr class="total"><td>수량</td><td></td>${cfg.items.map(it => `<td>${fmt(totals[it.id])}</td>`).join('')}<td></td></tr>
+      <tr class="total"><td>수량</td><td></td>${si.map(it => `<td>${fmt(totals[it.id])}</td>`).join('')}<td></td></tr>
       ${days.map(r => { const w = warDate(weekData.week, r.d); return `
       <tr><td>Day ${r.d}</td><td>${w.md} (${w.dow})</td>
-        ${r.cells.map(c => c == null ? '<td class="na">·</td>' : `<td>${pts(c)}</td>`).join('')}
+        ${r.cells.map((c, j) => scored(cfg.items[j]) ? (c == null ? '<td class="na">·</td>' : `<td>${pts(c)}</td>`) : '').join('')}
         <td class="score">${pts(r.sum)}</td></tr>`; }).join('')}
-      <tr class="total"><td>합계</td><td></td>${cfg.items.map(it => `<td>${pts(totals[it.id] * it.coef)}</td>`).join('')}
+      <tr class="total"><td>합계</td><td></td>${si.map(it => `<td>${pts(totals[it.id] * it.coef)}</td>`).join('')}
         <td class="score">${pts(days.reduce((a, r) => a + r.sum, 0))}</td></tr>
     </tbody>`;
+  $('#countOnly').innerHTML = ci.length ? `<h3>집계만 (점수 제외)</h3><div class="totals">${ci.map(it =>
+    `<div class="total-box"><span>${esc(it.name)} 클랜 합계</span><b>${totals[it.id].toLocaleString('ko-KR')}</b><small>${fmt(totals[it.id])}</small></div>`).join('')}</div>` : '';
 
   // 취합표
   const admin = !!adminPw;
@@ -220,7 +223,7 @@ function renderStatus() {
   const list = sheetRows();
   $('#rankTable').innerHTML = `
     <thead><tr><th>#</th><th data-sort="member">닉네임${arrow('member')}</th><th data-sort="score">점수${arrow('score')}</th>
-      ${cfg.items.map(it => `<th data-sort="${it.id}">${esc(it.name)}${arrow(it.id)}<small>×${it.coef}</small></th>`).join('')}
+      ${cfg.items.map(it => `<th data-sort="${it.id}">${esc(it.name)}${arrow(it.id)}<small>${scored(it) ? '×' + it.coef : '집계만'}</small></th>`).join('')}
       <th data-sort="time">제출${arrow('time')}</th>${admin ? '<th></th>' : ''}</tr></thead>
     <tbody>${list.map((r, i) => r.sub ? `
       <tr class="${r.roster ? '' : 'stale'}" title="${esc(r.sub.raw)}">
@@ -232,7 +235,9 @@ function renderStatus() {
       </tr>` : `
       <tr class="missing"><td>-</td><td>${esc(r.member)}</td><td>미제출</td>${cfg.items.map(() => '<td></td>').join('')}<td></td>${admin ? '<td></td>' : ''}</tr>`).join('')
       || `<tr><td colspan="${cfg.items.length + 4}" class="hint">클랜원 명단이 비어 있어요 (관리자 탭)</td></tr>`}
-    </tbody>`;
+    </tbody>
+    <tfoot><tr class="total"><td></td><td>합계</td><td class="score">${pts(list.reduce((a, r) => a + r.score, 0))}</td>
+      ${cfg.items.map(it => `<td>${totals[it.id].toLocaleString('ko-KR')}</td>`).join('')}<td></td>${admin ? '<td></td>' : ''}</tr></tfoot>`;
   $('#rankTable').querySelectorAll('[data-sort]').forEach(th => th.onclick = () => {
     const k = th.dataset.sort;
     if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'member' ? 1 : -1; }
@@ -261,10 +266,12 @@ function sheetMatrix() {
   const head = ['순위', '닉네임', '상태', '점수', ...cfg.items.map(it => it.name), '제출시각'];
   const body = sheetRows().map((r, i) => [r.sub ? i + 1 : '', r.member, r.sub ? '제출' : '미제출', r.sub ? Math.round(r.score) : '',
     ...cfg.items.map(it => r.sub ? (r.values[it.id] ?? 0) : ''), r.sub ? new Date(r.sub.submittedAt).toLocaleString('ko-KR') : '']);
-  const { days } = dayStats();
-  const dayRows = [[], ['클랜전', '날짜', '', '합계', ...cfg.items.map(it => it.name)],
-    ...days.map(r => { const w = warDate(weekData.week, r.d); return [`Day ${r.d}`, `${w.md}(${w.dow})`, '', Math.round(r.sum), ...r.cells.map(c => c == null ? '' : Math.round(c))]; })];
-  return [head, ...body, ...dayRows];
+  const { days, totals } = dayStats();
+  const si = cfg.items.map((it, j) => [it, j]).filter(([it]) => scored(it));
+  const sumRow = ['', '합계', '', Math.round(body.reduce((a, r) => a + (Number(r[3]) || 0), 0)), ...cfg.items.map(it => totals[it.id]), ''];
+  const dayRows = [[], ['클랜전', '날짜', '', '합계', ...si.map(([it]) => it.name)],
+    ...days.map(r => { const w = warDate(weekData.week, r.d); return [`Day ${r.d}`, `${w.md}(${w.dow})`, '', Math.round(r.sum), ...si.map(([, j]) => r.cells[j] == null ? '' : Math.round(r.cells[j]))]; })];
+  return [head, ...body, sumRow, ...dayRows];
 }
 $('#copyTable').onclick = e => copy(sheetMatrix().map(r => r.join('\t')).join('\n'), e.target);
 
