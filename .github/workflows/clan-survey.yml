@@ -1,0 +1,83 @@
+# 길드전 자원조사 사이트 → Cloudflare Pages 자동 배포
+# 필요: GitHub 저장소 Secrets 에 CLOUDFLARE_API_TOKEN (권한: Pages 편집, D1 편집, 계정 설정 읽기)
+name: Deploy clan-survey
+
+on:
+  push:
+    branches: [claude/determined-clarke-ekn93g]
+    paths: ['tools/clan-survey/**', '.github/workflows/clan-survey.yml']
+  workflow_dispatch:
+
+concurrency: clan-survey-deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/clan-survey
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PROJECT: clan-survey
+      DB_NAME: clan-survey
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 토큰 확인 · 계정/DB ID 찾기
+        run: |
+          set -euo pipefail
+          api() { curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4$1"; }
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::CLOUDFLARE_API_TOKEN 시크릿이 비어 있어요"; exit 1; fi
+          ACC=$(api /accounts | jq -r '.result[0].id // empty')
+          if [ -z "$ACC" ]; then echo "::error::계정을 못 찾았어요 (토큰 권한: 계정 설정 읽기 확인)"; api /accounts; exit 1; fi
+          echo "CLOUDFLARE_ACCOUNT_ID=$ACC" >> "$GITHUB_ENV"
+          DB=$(api "/accounts/$ACC/d1/database?name=$DB_NAME" | jq -r --arg n "$DB_NAME" '.result[] | select(.name==$n) | .uuid' | head -1)
+          if [ -z "$DB" ]; then
+            echo "D1 '$DB_NAME' 이 없어서 새로 만듭니다"
+            DB=$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'content-type: application/json' \
+              -d "{\"name\":\"$DB_NAME\"}" "https://api.cloudflare.com/client/v4/accounts/$ACC/d1/database" | jq -r '.result.uuid')
+          fi
+          echo "DB_ID=$DB" >> "$GITHUB_ENV"
+          echo "계정·DB 확인 완료"
+
+      - name: Pages 설정 파일 만들기
+        run: |
+          # 저장소의 wrangler.jsonc 는 Workers 방식용이라, Pages 방식 설정으로 바꿔서 배포
+          rm -f wrangler.jsonc
+          cat > wrangler.json <<JSON
+          {
+            "name": "$PROJECT",
+            "pages_build_output_dir": "./public",
+            "compatibility_date": "2025-09-01",
+            "d1_databases": [{ "binding": "DB", "database_name": "$DB_NAME", "database_id": "$DB_ID" }]
+          }
+          JSON
+          cat wrangler.json
+
+      - name: Pages 프로젝트 준비
+        run: |
+          npx --yes wrangler@4 pages project list | grep -q "$PROJECT" \
+            || npx --yes wrangler@4 pages project create "$PROJECT" --production-branch=main
+
+      - name: 배포
+        run: npx --yes wrangler@4 pages deploy --project-name="$PROJECT" --branch=main --commit-dirty=true
+
+      - name: 동작 확인
+        run: |
+          set -euo pipefail
+          SUB=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" | jq -r '.result.subdomain')
+          URL="https://$SUB"
+          for i in 1 2 3 4 5 6; do
+            CODE=$(curl -s -o /tmp/cfg.json -w '%{http_code}' "$URL/api/config" || true)
+            [ "$CODE" = "200" ] && break
+            sleep 10
+          done
+          echo "응답 코드: $CODE"; head -c 300 /tmp/cfg.json; echo
+          echo "### 사이트 주소: $URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "SITE_URL=$URL"
+          [ "$CODE" = "200" ]
