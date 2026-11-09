@@ -7,16 +7,18 @@
 // [id, 이름, 별칭, 계수(개당 전쟁 포인트), 쓰는 날(Day)]
 // 계수는 처음 값일 뿐, 관리자 화면에서 바꾼다. 쓰는 날이 비면 '집계만'(점수 제외, 합계만).
 const DEFAULT_ITEMS = [
-  ['skill', '스킬뽑기', '스킬', 125, '1,3'],
-  ['petegg', '펫알', '알,펫포인트', 0, ''],
-  ['petmerge', '펫합성', '', 1250, '3,5'],
-  ['mount', '탈것뽑기', '탈것', 600, '2,4'],
-  ['mountmerge', '탈것합성', '', 600, '2,4'],
-  ['green', '초록물약', '초록,물약', 0, ''],
+  ['skill', '스킬포인트', '스킬,스킬뽑기,스포', 125, '1,3'],
+  ['petpoint', '펫포인트', '펫포', 0, ''],
+  ['petegg', '펫알갯수', '펫알,펫알개수,알', 0, ''],
+  ['mount', '탈것포인트', '탈것,탈것뽑기,탈거포인트,탈거', 600, '2,4'],
+  ['mountmerge', '탈것 합치기 갯수', '탈것합치기,탈것합치기개수,탈것합성,탈거합치기,탈거합치기갯수,합치기', 600, '2,4'],
+  ['green', '초록물약 갯수', '초록물약,초록물약개수,초록,물약', 0, ''],
 ];
+// 항목 목록 버전: 올리면 배포 후 첫 요청 때 DB의 항목을 위 목록으로 한 번 교체 (계수 편집 내용도 초기화됨)
+const ITEMS_VERSION = '2';
 
 const DEFAULT_SETTINGS = {
-  nagTemplate: '📢 [{주차} 주차 자원조사] 미제출 {미제출수}명\n{미제출자}\n\n아래 링크에서 1분이면 끝나요 🙏\n{링크}\n(한 줄 입력 예: 닉네임, 스킬뽑기 346k, 펫알 118k)',
+  nagTemplate: '📢 [{주차} 주차 자원조사] 미제출 {미제출수}명\n{미제출자}\n\n아래 링크에서 1분이면 끝나요 🙏\n{링크}\n(한 줄 입력 예: 닉네임, 스킬포인트 346k, 펫포인트 118k, 펫알갯수 30)',
 };
 
 const SCHEMA = [
@@ -37,10 +39,14 @@ async function ensureSchema(db) {
   await db.batch(SCHEMA.map(s => db.prepare(s)));
   // 예전 버전 DB에 days 칸이 없으면 추가 (이미 있으면 오류 → 무시)
   try { await db.prepare(`ALTER TABLE items ADD COLUMN days TEXT NOT NULL DEFAULT ''`).run(); } catch {}
-  const { n } = await db.prepare('SELECT COUNT(*) AS n FROM items').first();
-  if (n === 0) {
-    await db.batch(DEFAULT_ITEMS.map(([id, name, aliases, coef, days], i) =>
-      db.prepare('INSERT INTO items (id,name,aliases,coef,sort,days) VALUES (?,?,?,?,?,?)').bind(id, name, aliases, coef, i, days)));
+  const ver = await db.prepare(`SELECT value FROM settings WHERE key = 'itemsVersion'`).first();
+  if (!ver || ver.value !== ITEMS_VERSION) {
+    await db.batch([
+      db.prepare('DELETE FROM items'),
+      ...DEFAULT_ITEMS.map(([id, name, aliases, coef, days], i) =>
+        db.prepare('INSERT INTO items (id,name,aliases,coef,sort,days) VALUES (?,?,?,?,?,?)').bind(id, name, aliases, coef, i, days)),
+      db.prepare(`INSERT INTO settings (key, value) VALUES ('itemsVersion', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(ITEMS_VERSION),
+    ]);
   }
   ready = true;
 }

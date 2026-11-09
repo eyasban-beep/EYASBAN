@@ -43,7 +43,7 @@
     <div id="lineMode" class="card hidden">
       <div class="field">
         <label for="lineInput">한 줄 입력</label>
-        <textarea id="lineInput" rows="4" placeholder="daye, 스킬뽑기 346k, 펫알 118k, 펫합성 1840개, 탈것뽑기 46.9k, 탈것합성 1950개, 초록물약 2.7k"></textarea>
+        <textarea id="lineInput" rows="4" placeholder="daye, 스킬포인트 346k, 펫포인트 118k, 펫알갯수 30, 탈것포인트 46.9k, 탈것 합치기 갯수 1950, 초록물약 갯수 2.7k"></textarea>
         <p class="hint">맨 앞은 닉네임, 그 뒤로 <b>항목 숫자</b>를 쉼표로 구분해요.</p>
       </div>
       <div id="preview"></div>
@@ -115,7 +115,7 @@
     <div id="adminBox" class="hidden">
       <div class="card">
         <h2>항목 · 계수</h2>
-        <p class="hint">계수 = 1개당 클랜전 포인트. 쓰는 날 = 그 자원이 점수가 되는 클랜전 Day (Day 1 = 화요일). <b>쓰는 날을 하나도 체크하지 않으면 '집계만'</b> — 점수에서 빠지고 클랜 합계만 보여요 (예: 펫알, 초록물약).<br>다른 이름 = 한 줄 입력에서 같이 알아들을 별칭 (쉼표로 구분). ID는 저장 후 바꾸지 마세요 — 지난 기록이 ID로 연결돼요.</p>
+        <p class="hint">계수 = 1개당 클랜전 포인트. 쓰는 날 = 그 자원이 점수가 되는 클랜전 Day (Day 1 = 화요일). <b>쓰는 날을 하나도 체크하지 않으면 '집계만'</b> — 점수에서 빠지고 클랜 합계만 보여요 (예: 펫포인트, 펫알갯수, 초록물약 갯수).<br>다른 이름 = 한 줄 입력에서 같이 알아들을 별칭 (쉼표로 구분). ID는 저장 후 바꾸지 마세요 — 지난 기록이 ID로 연결돼요.</p>
         <div class="scroll"><table id="itemTable" class="edit"></table></div>
         <div class="actions">
           <button id="addItem">+ 항목 추가</button>

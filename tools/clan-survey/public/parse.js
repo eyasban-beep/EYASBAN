@@ -29,12 +29,12 @@ export function fmt(n) {
 }
 
 // items: [{id, name, aliases:[...]}]  members: ["daye", ...]
-// "daye, 스킬뽑기 346k, 펫알 118k" → { member, values:{id:n}, warnings:[] }
+// "daye, 스킬포인트 346k, 펫포인트 118k" → { member, values:{id:n}, warnings:[] }
 export function parseLine(text, items, members) {
   const parts = String(text || '').split(/[,，\n]+/).map(s => s.trim()).filter(Boolean);
   const out = { member: null, values: {}, warnings: [] };
 
-  // 항목 이름 후보 (긴 것부터 비교해서 "펫합성"이 "펫"보다 먼저 맞도록)
+  // 항목 이름 후보 (긴 것부터 비교해서 "스킬포인트"가 "스킬"보다 먼저 맞도록)
   const keys = [];
   for (const it of items) {
     for (const k of [it.name, ...(it.aliases || [])]) {
