@@ -127,42 +127,117 @@ $('#submitBtn').onclick = async () => {
 };
 
 // ---------------- 현황 ----------------
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+// 조사 주(월요일) → 클랜전 Day n 날짜 (Day 1 = 다음날 화요일)
+function warDate(week, day) {
+  const d = new Date(week + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + day);
+  return { md: `${d.getUTCMonth() + 1}/${d.getUTCDate()}`, dow: DOW[d.getUTCDay()] };
+}
+const pts = n => Math.round(n).toLocaleString('ko-KR');
+let sortKey = 'score', sortDir = -1;
+
 $('#weekSel').onchange = e => loadWeek(e.target.value);
 async function loadWeek(week) {
   try { weekData = await api('week?week=' + week); } catch (e) { $('#rankTable').innerHTML = `<tr><td class="msg err">${esc(e.message)}</td></tr>`; return; }
   $('#weekSel').innerHTML = weekData.weeks.map(w => `<option value="${w}" ${w === weekData.week ? 'selected' : ''}>${w}${w === weekData.current ? ' (이번 주)' : ''}</option>`).join('');
+  const d1 = warDate(weekData.week, 1), d6 = warDate(weekData.week, 6);
+  $('#warRange').textContent = `클랜전 ${d1.md}(${d1.dow}) ~ ${d6.md}(${d6.dow})`;
   renderStatus();
 }
 
-function rows() {
-  return weekData.submissions
-    .map(s => ({ ...s, score: score(s.values, cfg.items), roster: cfg.members.includes(s.member) }))
-    .sort((a, b) => b.score - a.score);
+function missingMembers() {
+  const done = new Set(weekData.submissions.map(s => s.member));
+  return cfg.members.filter(m => !done.has(m));
+}
+
+function nagMessage() {
+  const missing = missingMembers();
+  return (cfg.settings?.nagTemplate || '')
+    .replaceAll('{주차}', weekData.week)
+    .replaceAll('{미제출자}', missing.join(', ') || '없음 🎉')
+    .replaceAll('{미제출수}', missing.length)
+    .replaceAll('{전체수}', cfg.members.length)
+    .replaceAll('{링크}', location.origin);
+}
+
+// 명단 전원 + 명단 밖 제출자를 한 표로
+function sheetRows() {
+  const bySub = new Map(weekData.submissions.map(s => [s.member, s]));
+  const names = [...cfg.members, ...weekData.submissions.map(s => s.member).filter(m => !cfg.members.includes(m))];
+  const list = names.map(m => {
+    const s = bySub.get(m);
+    return { member: m, sub: s, values: s?.values || {}, score: s ? score(s.values, cfg.items) : 0, roster: cfg.members.includes(m) };
+  });
+  const val = r => sortKey === 'score' ? r.score : sortKey === 'member' ? r.member.toLowerCase()
+    : sortKey === 'time' ? (r.sub?.submittedAt || 0) : (r.values[sortKey] ?? -1);
+  list.sort((a, b) => {
+    if (!!a.sub !== !!b.sub && sortKey !== 'member') return a.sub ? -1 : 1; // 미제출은 아래로
+    const x = val(a), y = val(b);
+    return (x > y ? 1 : x < y ? -1 : 0) * sortDir;
+  });
+  return list;
+}
+
+// 일자별 표: 자원 총량 × 계수를 쓰는 날 수로 나눔
+function dayStats() {
+  const totals = {};
+  cfg.items.forEach(it => { totals[it.id] = weekData.submissions.reduce((a, s) => a + (Number(s.values[it.id]) || 0), 0); });
+  const days = [1, 2, 3, 4, 5].map(d => {
+    const cells = cfg.items.map(it => it.days.includes(d) ? totals[it.id] * it.coef / it.days.length : null);
+    return { d, cells, sum: cells.reduce((a, c) => a + (c || 0), 0) };
+  });
+  return { totals, days };
 }
 
 function renderStatus() {
-  const subs = rows();
-  const done = new Set(subs.map(s => s.member));
-  const missing = cfg.members.filter(m => !done.has(m));
+  const missing = missingMembers();
+  const subCount = weekData.submissions.filter(s => cfg.members.includes(s.member)).length;
   $('#missingCount').textContent = `${missing.length}명`;
-  $('#doneCount').textContent = `${subs.filter(s => s.roster).length} / ${cfg.members.length}명 제출`;
+  $('#doneCount').textContent = `${subCount} / ${cfg.members.length}명 제출`;
   $('#missingList').innerHTML = missing.length
     ? missing.map(m => `<span class="chip">${esc(m)}</span>`).join('')
     : '<span class="done-all">🎉 전원 제출 완료</span>';
-  const admin = !!adminPw;
-  $('#rankTable').innerHTML = `
-    <thead><tr><th>#</th><th>닉네임</th><th>점수</th>
-      ${cfg.items.map(it => `<th>${esc(it.name)}<small>×${it.coef}</small></th>`).join('')}
-      <th>제출</th>${admin ? '<th></th>' : ''}</tr></thead>
-    <tbody>${subs.map((s, i) => `
-      <tr class="${s.roster ? '' : 'stale'}" title="${esc(s.raw)}">
-        <td>${i + 1}</td><td>${esc(s.member)}${s.roster ? '' : ' <small>(명단 외)</small>'}</td>
-        <td class="score">${fmt(s.score)}</td>
-        ${cfg.items.map(it => `<td>${fmt(s.values[it.id] ?? 0)}</td>`).join('')}
-        <td>${new Date(s.submittedAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' })}</td>
-        ${admin ? `<td><button class="icon-btn" data-del="${esc(s.member)}">삭제</button></td>` : ''}
-      </tr>`).join('') || `<tr><td colspan="${cfg.items.length + 4}" class="hint">아직 제출이 없어요</td></tr>`}
+  $('#nagText').value = nagMessage();
+
+  // 일자별
+  const { totals, days } = dayStats();
+  $('#dayTable').innerHTML = `
+    <thead><tr><th>클랜전</th><th>날짜</th>${cfg.items.map(it => `<th>${esc(it.name)}<small>×${it.coef}</small></th>`).join('')}<th>합계</th></tr></thead>
+    <tbody>
+      <tr class="total"><td>수량</td><td></td>${cfg.items.map(it => `<td>${fmt(totals[it.id])}</td>`).join('')}<td></td></tr>
+      ${days.map(r => { const w = warDate(weekData.week, r.d); return `
+      <tr><td>Day ${r.d}</td><td>${w.md} (${w.dow})</td>
+        ${r.cells.map(c => c == null ? '<td class="na">·</td>' : `<td>${pts(c)}</td>`).join('')}
+        <td class="score">${pts(r.sum)}</td></tr>`; }).join('')}
+      <tr class="total"><td>합계</td><td></td>${cfg.items.map(it => `<td>${pts(totals[it.id] * it.coef)}</td>`).join('')}
+        <td class="score">${pts(days.reduce((a, r) => a + r.sum, 0))}</td></tr>
     </tbody>`;
+
+  // 취합표
+  const admin = !!adminPw;
+  const arrow = k => sortKey === k ? (sortDir < 0 ? ' ▼' : ' ▲') : '';
+  const list = sheetRows();
+  $('#rankTable').innerHTML = `
+    <thead><tr><th>#</th><th data-sort="member">닉네임${arrow('member')}</th><th data-sort="score">점수${arrow('score')}</th>
+      ${cfg.items.map(it => `<th data-sort="${it.id}">${esc(it.name)}${arrow(it.id)}<small>×${it.coef}</small></th>`).join('')}
+      <th data-sort="time">제출${arrow('time')}</th>${admin ? '<th></th>' : ''}</tr></thead>
+    <tbody>${list.map((r, i) => r.sub ? `
+      <tr class="${r.roster ? '' : 'stale'}" title="${esc(r.sub.raw)}">
+        <td>${i + 1}</td><td>${esc(r.member)}${r.roster ? '' : ' <small>(명단 외)</small>'}</td>
+        <td class="score">${pts(r.score)}</td>
+        ${cfg.items.map(it => `<td>${(r.values[it.id] ?? 0).toLocaleString('ko-KR')}</td>`).join('')}
+        <td>${new Date(r.sub.submittedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+        ${admin ? `<td><button class="icon-btn" data-del="${esc(r.member)}">삭제</button></td>` : ''}
+      </tr>` : `
+      <tr class="missing"><td>-</td><td>${esc(r.member)}</td><td>미제출</td>${cfg.items.map(() => '<td></td>').join('')}<td></td>${admin ? '<td></td>' : ''}</tr>`).join('')
+      || `<tr><td colspan="${cfg.items.length + 4}" class="hint">클랜원 명단이 비어 있어요 (관리자 탭)</td></tr>`}
+    </tbody>`;
+  $('#rankTable').querySelectorAll('[data-sort]').forEach(th => th.onclick = () => {
+    const k = th.dataset.sort;
+    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'member' ? 1 : -1; }
+    renderStatus();
+  });
   $('#rankTable').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     if (!confirm(`${b.dataset.del} 님의 ${weekData.week} 제출을 삭제할까요?`)) return;
     try { await api('admin/submission', { method: 'DELETE', body: { week: weekData.week, member: b.dataset.del } }); loadWeek(weekData.week); }
@@ -171,18 +246,44 @@ function renderStatus() {
 }
 
 async function copy(text, btn) {
-  try { await navigator.clipboard.writeText(text); } catch { prompt('복사해서 쓰세요', text); return; }
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    // 일부 휴대폰 브라우저 대비
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove();
+    if (!ok) { prompt('길게 눌러 복사하세요', text); return; }
+  }
   const t = btn.textContent; btn.textContent = '복사됨 ✓'; setTimeout(() => btn.textContent = t, 1500);
 }
-$('#copyMissing').onclick = e => {
-  const done = new Set(weekData.submissions.map(s => s.member));
-  const missing = cfg.members.filter(m => !done.has(m));
-  copy(`[${weekData.week} 주차 자원 조사 미제출] ${missing.join(', ') || '없음'}`, e.target);
-};
-$('#copyTable').onclick = e => {
-  const head = ['순위', '닉네임', '점수', ...cfg.items.map(it => it.name)];
-  const body = rows().map((s, i) => [i + 1, s.member, Math.round(s.score * 100) / 100, ...cfg.items.map(it => s.values[it.id] ?? 0)]);
-  copy([head, ...body].map(r => r.join('\t')).join('\n'), e.target);
+$('#copyNag').onclick = e => copy($('#nagText').value, e.target);
+
+function sheetMatrix() {
+  const head = ['순위', '닉네임', '상태', '점수', ...cfg.items.map(it => it.name), '제출시각'];
+  const body = sheetRows().map((r, i) => [r.sub ? i + 1 : '', r.member, r.sub ? '제출' : '미제출', r.sub ? Math.round(r.score) : '',
+    ...cfg.items.map(it => r.sub ? (r.values[it.id] ?? 0) : ''), r.sub ? new Date(r.sub.submittedAt).toLocaleString('ko-KR') : '']);
+  const { days } = dayStats();
+  const dayRows = [[], ['클랜전', '날짜', '', '합계', ...cfg.items.map(it => it.name)],
+    ...days.map(r => { const w = warDate(weekData.week, r.d); return [`Day ${r.d}`, `${w.md}(${w.dow})`, '', Math.round(r.sum), ...r.cells.map(c => c == null ? '' : Math.round(c))]; })];
+  return [head, ...body, ...dayRows];
+}
+$('#copyTable').onclick = e => copy(sheetMatrix().map(r => r.join('\t')).join('\n'), e.target);
+
+function downloadCsv(name, rows) {
+  const q = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v;
+  // 엑셀에서 한글이 안 깨지게 BOM 추가
+  const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$('#csvWeek').onclick = () => downloadCsv(`자원조사_${weekData.week}.csv`, sheetMatrix());
+$('#csvAll').onclick = async () => {
+  try {
+    const { submissions } = await api('export');
+    const rows = [['주차', '닉네임', '점수', ...cfg.items.map(it => it.name), '제출시각'],
+      ...submissions.map(s => [s.week, s.member, Math.round(score(s.values, cfg.items)), ...cfg.items.map(it => s.values[it.id] ?? 0), new Date(s.submittedAt).toLocaleString('ko-KR')])];
+    downloadCsv('자원조사_전체.csv', rows);
+  } catch (e) { alert(e.message); }
 };
 
 // ---------------- 관리자 ----------------
@@ -198,6 +299,7 @@ async function adminLogin(manual) {
     $('#loginBox').classList.add('hidden');
     $('#adminBox').classList.remove('hidden');
     renderItemEditor();
+    $('#nagTemplate').value = cfg.settings?.nagTemplate || '';
     $('#memberText').value = r.members.filter(m => m.active).map(m => m.name).join('\n');
     countMembers();
   } catch (e) {
@@ -215,17 +317,18 @@ $('#logout').onclick = () => {
 
 let editItems = [];
 function renderItemEditor() {
-  editItems = cfg.items.map(it => ({ ...it, aliases: it.aliases.join(', '), isNew: false }));
+  editItems = cfg.items.map(it => ({ ...it, days: [...it.days], aliases: it.aliases.join(', '), isNew: false }));
   drawItems();
 }
 function drawItems() {
   $('#itemTable').innerHTML = `
-    <thead><tr><th>이름</th><th>다른 이름</th><th>계수</th><th>ID</th><th></th></tr></thead>
+    <thead><tr><th>이름</th><th>다른 이름</th><th>계수</th><th>쓰는 날</th><th>ID</th><th></th></tr></thead>
     <tbody>${editItems.map((it, i) => `
       <tr>
         <td><input data-i="${i}" data-k="name" value="${esc(it.name)}"></td>
         <td><input data-i="${i}" data-k="aliases" value="${esc(it.aliases)}" placeholder="예: 스킬, 스뽑"></td>
         <td><input class="coef" data-i="${i}" data-k="coef" value="${esc(it.coef)}" inputmode="decimal"></td>
+        <td><div class="days">${[1, 2, 3, 4, 5].map(d => `<label>D${d}<input type="checkbox" data-i="${i}" data-day="${d}" ${it.days.includes(d) ? 'checked' : ''}></label>`).join('')}</div></td>
         <td><input class="id" data-i="${i}" data-k="id" value="${esc(it.id)}" ${it.isNew ? '' : 'readonly'}></td>
         <td>
           <button class="icon-btn" data-up="${i}" ${i === 0 ? 'disabled' : ''}>▲</button>
@@ -233,7 +336,11 @@ function drawItems() {
         </td>
       </tr>`).join('')}</tbody>`;
   const t = $('#itemTable');
-  t.querySelectorAll('input').forEach(inp => inp.oninput = () => { editItems[inp.dataset.i][inp.dataset.k] = inp.value; });
+  t.querySelectorAll('input[data-k]').forEach(inp => inp.oninput = () => { editItems[inp.dataset.i][inp.dataset.k] = inp.value; });
+  t.querySelectorAll('input[data-day]').forEach(cb => cb.onchange = () => {
+    const it = editItems[cb.dataset.i], d = +cb.dataset.day;
+    it.days = cb.checked ? [...new Set([...it.days, d])].sort() : it.days.filter(x => x !== d);
+  });
   t.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const i = +b.dataset.up; [editItems[i - 1], editItems[i]] = [editItems[i], editItems[i - 1]]; drawItems(); });
   t.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
     if (!confirm(`"${editItems[b.dataset.rm].name}" 항목을 지울까요? (저장해야 반영)`)) return;
@@ -241,7 +348,7 @@ function drawItems() {
   });
 }
 $('#addItem').onclick = () => {
-  editItems.push({ id: 'item' + Date.now().toString(36), name: '', aliases: '', coef: 1, isNew: true });
+  editItems.push({ id: 'item' + Date.now().toString(36), name: '', aliases: '', coef: 1, days: [], isNew: true });
   drawItems();
 };
 $('#saveItems').onclick = async () => {
@@ -251,6 +358,14 @@ $('#saveItems').onclick = async () => {
     renderItemEditor(); renderForm(); updatePreview();
     msg($('#itemMsg'), '저장했어요', true);
   } catch (e) { msg($('#itemMsg'), e.message, false); }
+};
+
+$('#saveNag').onclick = async () => {
+  try {
+    const r = await api('admin/settings', { method: 'PUT', body: { nagTemplate: $('#nagTemplate').value } });
+    cfg.settings = r.settings;
+    msg($('#nagMsg'), '저장했어요', true);
+  } catch (e) { msg($('#nagMsg'), e.message, false); }
 };
 
 function countMembers() {

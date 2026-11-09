@@ -3,19 +3,26 @@
 //   - D1 바인딩: 변수 이름 DB
 //   - 환경 변수(비밀): ADMIN_PASSWORD (관리자 비밀번호), CLAN_CODE (선택: 제출용 클랜 코드)
 
+// [id, 이름, 별칭, 계수(개당 전쟁 포인트), 쓰는 날(Day)]
+// 계수는 처음 값일 뿐, 관리자 화면에서 바꾼다.
 const DEFAULT_ITEMS = [
-  ['skill', '스킬뽑기', '스킬'],
-  ['petegg', '펫알', ''],
-  ['petmerge', '펫합성', ''],
-  ['mount', '탈것뽑기', '탈것'],
-  ['mountmerge', '탈것합성', ''],
-  ['green', '초록물약', '초록,물약'],
+  ['skill', '스킬뽑기', '스킬', 125, '1,3'],
+  ['petegg', '펫알', '알', 400, '3,5'],
+  ['petmerge', '펫합성', '', 1250, '3,5'],
+  ['mount', '탈것뽑기', '탈것', 600, '2,4'],
+  ['mountmerge', '탈것합성', '', 600, '2,4'],
+  ['green', '초록물약', '초록,물약', 1, '2,5'],
 ];
+
+const DEFAULT_SETTINGS = {
+  nagTemplate: '📢 [{주차} 주차 자원조사] 미제출 {미제출수}명\n{미제출자}\n\n아래 링크에서 1분이면 끝나요 🙏\n{링크}\n(한 줄 입력 예: 닉네임, 스킬뽑기 346k, 펫알 118k)',
+};
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS items (
      id TEXT PRIMARY KEY, name TEXT NOT NULL, aliases TEXT NOT NULL DEFAULT '',
-     coef REAL NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0)`,
+     coef REAL NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0, days TEXT NOT NULL DEFAULT '')`,
+  `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS members (
      name TEXT PRIMARY KEY, active INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS submissions (
@@ -27,10 +34,12 @@ let ready = false;
 async function ensureSchema(db) {
   if (ready) return;
   await db.batch(SCHEMA.map(s => db.prepare(s)));
+  // 예전 버전 DB에 days 칸이 없으면 추가 (이미 있으면 오류 → 무시)
+  try { await db.prepare(`ALTER TABLE items ADD COLUMN days TEXT NOT NULL DEFAULT ''`).run(); } catch {}
   const { n } = await db.prepare('SELECT COUNT(*) AS n FROM items').first();
   if (n === 0) {
-    await db.batch(DEFAULT_ITEMS.map(([id, name, aliases], i) =>
-      db.prepare('INSERT INTO items (id,name,aliases,coef,sort) VALUES (?,?,?,1,?)').bind(id, name, aliases, i)));
+    await db.batch(DEFAULT_ITEMS.map(([id, name, aliases, coef, days], i) =>
+      db.prepare('INSERT INTO items (id,name,aliases,coef,sort,days) VALUES (?,?,?,?,?,?)').bind(id, name, aliases, coef, i, days)));
   }
   ready = true;
 }
@@ -48,7 +57,14 @@ const fail = (msg, status = 400) => json({ error: msg }, status);
 
 async function getItems(db) {
   const { results } = await db.prepare('SELECT * FROM items ORDER BY sort, name').all();
-  return results.map(r => ({ id: r.id, name: r.name, aliases: r.aliases ? r.aliases.split(',').map(s => s.trim()).filter(Boolean) : [], coef: r.coef }));
+  return results.map(r => ({ id: r.id, name: r.name, aliases: r.aliases ? r.aliases.split(',').map(s => s.trim()).filter(Boolean) : [], coef: r.coef,
+    days: String(r.days || '').split(',').map(Number).filter(d => d >= 1 && d <= 5) }));
+}
+async function getSettings(db) {
+  const { results } = await db.prepare('SELECT key, value FROM settings').all();
+  const out = { ...DEFAULT_SETTINGS };
+  for (const r of results) if (r.key in DEFAULT_SETTINGS) out[r.key] = r.value;
+  return out;
 }
 async function getMembers(db, all = false) {
   const { results } = await db.prepare(`SELECT name, active FROM members ${all ? '' : 'WHERE active = 1'} ORDER BY sort, name COLLATE NOCASE`).all();
@@ -72,7 +88,7 @@ export async function onRequest({ request, env, params }) {
   try {
     // ---------- 누구나 ----------
     if (path === 'config' && method === 'GET') {
-      return json({ items: await getItems(db), members: await getMembers(db), week: weekKey(), requireCode: !!env.CLAN_CODE });
+      return json({ items: await getItems(db), members: await getMembers(db), week: weekKey(), requireCode: !!env.CLAN_CODE, settings: await getSettings(db) });
     }
 
     if (path === 'week' && method === 'GET') {
@@ -86,6 +102,11 @@ export async function onRequest({ request, env, params }) {
         week, current: weekKey(), weeks,
         submissions: results.map(r => ({ member: r.member, values: JSON.parse(r.vals), raw: r.raw, submittedAt: r.submitted_at })),
       });
+    }
+
+    if (path === 'export' && method === 'GET') {
+      const { results } = await db.prepare('SELECT week, member, vals, submitted_at FROM submissions ORDER BY week DESC, member').all();
+      return json({ submissions: results.map(r => ({ week: r.week, member: r.member, values: JSON.parse(r.vals), submittedAt: r.submitted_at })) });
     }
 
     if (path === 'submit' && method === 'POST') {
@@ -130,7 +151,8 @@ export async function onRequest({ request, env, params }) {
           if (ids.has(id)) return fail('항목 ID 중복');
           ids.add(id);
           const aliases = (Array.isArray(it.aliases) ? it.aliases : String(it.aliases || '').split(',')).map(s => String(s).trim()).filter(Boolean).join(',');
-          rows.push(db.prepare('INSERT INTO items (id,name,aliases,coef,sort) VALUES (?,?,?,?,?)').bind(id, name, aliases, coef, i));
+          const days = [...new Set((Array.isArray(it.days) ? it.days : []).map(Number).filter(d => d >= 1 && d <= 5))].sort().join(',');
+          rows.push(db.prepare('INSERT INTO items (id,name,aliases,coef,sort,days) VALUES (?,?,?,?,?,?)').bind(id, name, aliases, coef, i, days));
         }
         if (!rows.length) return fail('항목이 최소 1개는 있어야 해요');
         await db.batch([db.prepare('DELETE FROM items'), ...rows]);
@@ -145,6 +167,16 @@ export async function onRequest({ request, env, params }) {
           db.prepare('INSERT INTO members (name, active, sort) VALUES (?,1,?) ON CONFLICT(name) DO UPDATE SET active = 1, sort = excluded.sort').bind(n, i)));
         await db.batch(stmts);
         return json({ ok: true, members: await getMembers(db, true) });
+      }
+
+      if (sub === 'settings' && method === 'PUT') {
+        const stmts = [];
+        for (const k of Object.keys(DEFAULT_SETTINGS)) {
+          if (typeof body[k] !== 'string') continue;
+          stmts.push(db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, body[k].slice(0, 2000)));
+        }
+        if (stmts.length) await db.batch(stmts);
+        return json({ ok: true, settings: await getSettings(db) });
       }
 
       if (sub === 'submission' && method === 'DELETE') {

@@ -4,8 +4,10 @@ CREATE TABLE IF NOT EXISTS items (
   name TEXT NOT NULL,           -- 화면에 보이는 이름
   aliases TEXT NOT NULL DEFAULT '', -- 한 줄 입력용 별칭, 쉼표 구분
   coef REAL NOT NULL DEFAULT 1, -- 점수 계수
-  sort INTEGER NOT NULL DEFAULT 0
+  sort INTEGER NOT NULL DEFAULT 0,
+  days TEXT NOT NULL DEFAULT ''   -- 클랜전에서 점수가 되는 날, 예: '1,3' = Day 1, Day 3
 );
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); -- 카톡 재촉 문구 등
 CREATE TABLE IF NOT EXISTS members (
   name TEXT PRIMARY KEY,
   active INTEGER NOT NULL DEFAULT 1, -- 0 = 명단에서 뺀 사람 (기록은 유지)

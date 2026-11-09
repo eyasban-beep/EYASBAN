@@ -67,3 +67,20 @@ table.edit input.id { width: 110px; font-family: ui-monospace, monospace; font-s
   .item-field { grid-template-columns: 1fr; }
   .item-field .parsed { grid-column: 1; }
 }
+
+.sub-label { display: block; font-size: 13px; font-weight: 600; margin: 4px 0; color: var(--muted); }
+.actions.left { justify-content: flex-start; margin: 0 0 10px; }
+code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12px; }
+table.sheet { border: 1px solid var(--line); }
+table.sheet th, table.sheet td { border: 1px solid var(--line); }
+table.sheet th { background: var(--bg); cursor: default; }
+table.sheet th[data-sort] { cursor: pointer; }
+table.sheet th[data-sort]:hover { color: var(--accent); }
+table.sheet tr.missing td { background: var(--chip); color: var(--chip-text); }
+table.sheet tr.total td { font-weight: 700; background: var(--bg); }
+table.sheet td.na { color: var(--line); text-align: center; }
+.days { display: flex; gap: 2px; }
+.days label { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); }
+.days input { width: auto; margin: 0; }
+table.edit input[data-k=name] { min-width: 96px; }
+table.edit input[data-k=aliases] { min-width: 110px; }

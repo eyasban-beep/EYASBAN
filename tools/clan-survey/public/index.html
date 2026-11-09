@@ -9,7 +9,7 @@
 <body>
 <header>
   <h1>길드전 자원 조사</h1>
-  <p class="sub">매주 월요일 업데이트 · <span id="weekLabel">-</span> 주차</p>
+  <p class="sub">매주 월요일 업데이트 · <span id="weekLabel">-</span> 주차 · 클랜전 화~일</p>
   <nav>
     <button class="tab active" data-tab="submit">제출하기</button>
     <button class="tab" data-tab="status">현황·점수</button>
@@ -59,18 +59,35 @@
   <!-- 현황 -->
   <section id="tab-status" class="panel hidden">
     <div class="toolbar">
-      <label>주차 <select id="weekSel"></select></label>
-      <button id="copyTable">표 복사 (엑셀용)</button>
+      <label>조사 주차 <select id="weekSel"></select></label>
+      <span class="hint" id="warRange"></span>
     </div>
+
     <div class="card">
       <h2>미제출 <span id="missingCount" class="badge"></span></h2>
       <div id="missingList" class="chips"></div>
-      <button id="copyMissing" class="small">미제출자 목록 복사</button>
+      <label class="sub-label" for="nagText">카톡 재촉 메시지 (복사 전에 여기서 고쳐도 돼요)</label>
+      <textarea id="nagText" rows="6"></textarea>
+      <div class="actions">
+        <button id="copyNag" class="primary">💬 카톡 메시지 복사</button>
+      </div>
     </div>
-    <div class="card table-wrap">
-      <h2>점수 순위 <span id="doneCount" class="badge ok"></span></h2>
-      <div class="scroll"><table id="rankTable"></table></div>
-      <p class="hint">점수 = Σ(수량 × 계수). 계수를 바꾸면 지난 주 점수도 새 계수로 다시 계산돼요.</p>
+
+    <div class="card">
+      <h2>클랜전 일자별 예상 점수 <span id="doneCount" class="badge ok"></span></h2>
+      <div class="scroll"><table id="dayTable" class="sheet"></table></div>
+      <p class="hint">칸 = 클랜 전체 수량 × 계수. 한 자원이 두 날에 쓸 수 있으면 반씩 나눠 계산해요 (관리자 탭에서 쓰는 날을 하나만 체크하면 그날에 몰아서 계산).</p>
+    </div>
+
+    <div class="card">
+      <h2>취합표</h2>
+      <div class="actions left">
+        <button id="copyTable" class="small">표 복사 (엑셀·구글시트 붙여넣기)</button>
+        <button id="csvWeek" class="small">CSV 저장 (이 주)</button>
+        <button id="csvAll" class="small">CSV 저장 (전체 주)</button>
+      </div>
+      <div class="scroll"><table id="rankTable" class="sheet"></table></div>
+      <p class="hint">제목 칸을 누르면 정렬돼요. 점수 = Σ(수량 × 계수).</p>
     </div>
   </section>
 
@@ -88,13 +105,23 @@
     <div id="adminBox" class="hidden">
       <div class="card">
         <h2>항목 · 계수</h2>
-        <p class="hint">다른 이름: 한 줄 입력에서 같이 알아들을 별칭 (쉼표로 구분). ID는 저장 후 바꾸지 마세요 — 지난 기록이 ID로 연결돼요.</p>
+        <p class="hint">계수 = 1개당 클랜전 포인트. 쓰는 날 = 그 자원이 점수가 되는 클랜전 Day (Day 1 = 화요일).<br>다른 이름 = 한 줄 입력에서 같이 알아들을 별칭 (쉼표로 구분). ID는 저장 후 바꾸지 마세요 — 지난 기록이 ID로 연결돼요.</p>
         <div class="scroll"><table id="itemTable" class="edit"></table></div>
         <div class="actions">
           <button id="addItem">+ 항목 추가</button>
           <button id="saveItems" class="primary">항목 저장</button>
         </div>
         <p id="itemMsg" class="msg"></p>
+      </div>
+
+      <div class="card">
+        <h2>카톡 재촉 문구</h2>
+        <p class="hint">바꿔 쓰는 글자: <code>{주차}</code> <code>{미제출자}</code> <code>{미제출수}</code> <code>{전체수}</code> <code>{링크}</code></p>
+        <textarea id="nagTemplate" rows="6"></textarea>
+        <div class="actions">
+          <button id="saveNag" class="primary">문구 저장</button>
+        </div>
+        <p id="nagMsg" class="msg"></p>
       </div>
 
       <div class="card">
