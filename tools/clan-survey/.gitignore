@@ -1,0 +1,3 @@
+# 로컬 테스트(wrangler dev)가 만드는 임시 폴더
+.wrangler/
+node_modules/
