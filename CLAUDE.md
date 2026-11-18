@@ -35,3 +35,9 @@
 
 ## 기타
 - 문서는 한국어로 작성. 기획서: `docs/GDD.md`, 기술: `docs/TECH.md`, 일정: `docs/ROADMAP.md`
+
+## 아이디어 저장소 (ideas)
+- 작업 시작 시 ideas 저장소를 `git pull` 하고, 이 프로젝트 폴더의 `IDEAS.md`에서 미완료 항목(`- [ ]`)을 알려준다.
+- 반영한 항목은 `[x]`로 바꾸고 ideas 저장소에 commit/push 한다.
+- 메모 형식: `- [ ] YYYY-MM-DD 내용` (반영 완료 시 `[x]`)
+- 이 프로젝트의 폴더: (미지정 — ideas에 이 게임용 폴더가 아직 없음. 만들기 전까지는 `00_inbox/IDEAS.md` 확인)
